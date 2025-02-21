@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+"""
+@Filename : tool.py
+@Author : ZouZhao
+@Contact : wszwc3721@163.com
+@Time : 2025/02/21 21:34
+@License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
+@Description : 工具
+"""
+
+__copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
+__license__ = None
+
 from typing import TypeVar, Callable, Type, Any
 
 T = TypeVar("T")

@@ -6,12 +6,13 @@
 @Contact : wszwc3721@163.com
 @Time : 2025/01/17 20:41
 @License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
-@Description :
+@Description : 策略
 """
 
 __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
 __license__ = None
 
+# strategy.py
 from abc import ABC, abstractmethod
 from typing import Dict, List, NoReturn
 

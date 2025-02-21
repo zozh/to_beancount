@@ -6,7 +6,7 @@
 @Contact : wszwc3721@163.com
 @Time : 2024/12/28 15:51
 @License : Copyright (c) 2024 by ZouZhao, All Rights Reserved.
-@Description :
+@Description : Beancount 助手
 """
 
 __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
@@ -16,18 +16,18 @@ import os
 import time
 import shutil
 import subprocess
-from pathlib import Path
+
+
 from typing import NoReturn, List, Tuple
 from dataclasses import dataclass, fields
 
 from beancount import loader
 from beancount.core.data import Open
 
-from error import FileParseError
-from log import get_logger
+from log import LoggerManager
 
-log_obj = get_logger()
-module_name = Path(__file__).stem
+singleton_logger = LoggerManager()
+log_obj = singleton_logger.get_logger()
 
 
 @dataclass
@@ -42,7 +42,7 @@ class Transaction:
     amount: float = None
     currency: str = None
     remark: str = None
-    index: str = int
+    index: str = None
 
     def __str__(self) -> str:
         return self.get_str()
@@ -76,7 +76,7 @@ class Transaction:
         return cls(**filtered_data)
 
 
-class BeancountTool:
+class BeancountHelper:
     """Beancount 工具类"""
 
     def __init__(self, file_path: str) -> NoReturn:
@@ -108,7 +108,7 @@ class BeancountTool:
             file_path (str): Beancount 文件路径
 
         Raises:
-            FileParseError: 解析失败抛出
+            ValueError: 解析失败抛出
 
         Returns:
             tuple(entries,errors,options_map)
@@ -120,8 +120,8 @@ class BeancountTool:
 
         if errors:
             for error in errors:
-                log_obj.error(f"[{module_name}] {error}")
-            raise FileParseError(file_path, "Invalid file format")
+                log_obj.error(f"={error}")
+            raise ValueError(file_path, "Invalid file format")
         return entries, errors, options_map
 
     def _check_syntax(self) -> Tuple[str, bool]:
@@ -181,7 +181,7 @@ class BeancountTool:
         except Exception as error:
             # 发生其他异常，回滚文件并抛出异常
             self._restore_backup()
-            log_obj.error(f"[{module_name}] {error}")
+            log_obj.error(f"{error}")
 
         finally:
             # 删除备份文件

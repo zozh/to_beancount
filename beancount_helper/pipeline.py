@@ -6,7 +6,7 @@
 @Contact : wszwc3721@163.com
 @Time : 2025/01/17 20:41
 @License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
-@Description :
+@Description : 管道
 """
 
 __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
@@ -81,40 +81,3 @@ def to_currency(currency_value: str) -> PipeFunc:
         return data
 
     return _to_currency
-
-
-def apply_rules(tree) -> PipeFunc:
-    """
-    应用规则管道处理函数。
-
-    Args:
-        tree (Tree): 包含规则匹配逻辑的树对象。
-
-    Returns:
-        PipeFunc: 一个管道函数，用于根据规则树匹配并更新数据。
-    """
-
-    def _apply_rules(data: Dict) -> Dict:
-        """
-        根据规则树匹配并更新数据。
-
-        Args:
-            data (Dict): 输入的数据字典，包含需要匹配的字段。
-
-        Returns:
-            Dict: 更新后的数据字典。
-        """
-        # 假设数据中有一个字段表示匹配路径（例如 "path"）
-        match_path = [data.get("交易类型"), data.get("交易对方"), data.get("商品")]
-        if not isinstance(match_path, list):
-            raise ValueError("数据中的 'path' 字段必须是一个列表")
-
-        # 使用树结构进行匹配
-        matched_result = tree.match(match_path)
-
-        # 将匹配结果更新到数据字典中
-        data["matched_category"] = matched_result
-
-        return data
-
-    return _apply_rules

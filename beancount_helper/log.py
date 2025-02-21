@@ -1,9 +1,24 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+"""
+@Filename : log.py
+@Author : ZouZhao
+@Contact : wszwc3721@163.com
+@Time : 2025/02/21 21:33
+@License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
+@Description : 日志
+"""
+
+__copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
+__license__ = None
+
 import os
 import logging
 import colorlog
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from tool import singleton
+from config import Config
 
 
 @singleton
@@ -11,7 +26,10 @@ class LoggerManager:
     _instance = None
 
     def __init__(
-        self, name: str = "default_logger", log_dir: str = "logs", level=logging.DEBUG
+        self,
+        name: str = Config.app_name,
+        log_dir: str = Config.log_path,
+        level: int = Config.log_level,
     ):
         self.name = name
         self.log_dir = log_dir
@@ -31,15 +49,7 @@ class LoggerManager:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(
             colorlog.ColoredFormatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-                log_colors={
-                    "DEBUG": "cyan",
-                    "INFO": "green",
-                    "WARNING": "yellow",
-                    "ERROR": "red",
-                    "CRITICAL": "red",
-                },
+                Config.log_fmt, Config.log_datefmt, Config.log_colors
             )
         )
         logger.addHandler(console_handler)
@@ -56,10 +66,7 @@ class LoggerManager:
             encoding="utf-8",
         )
         file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
+            logging.Formatter(Config.log_fmt, Config.log_datefmt, Config.log_colors)
         )
         logger.addHandler(file_handler)
 
