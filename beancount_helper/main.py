@@ -21,24 +21,24 @@ from init import init_app
 if __name__ == "__main__":
     target_file = r"try\bill\微信支付账单(20250101-20250221).csv"
 
-    config, log_obj, root_path = init_app()
-    bean_path = config["paths"]["bean_path"]
-    temp_format = config["paths"]["temp_format"]
+    app_config, rules, log_obj = init_app()
+    bean_path = app_config["bean_path"]
+    temp_csv_path = app_config["temp_csv"]
+    out_bean_path = app_config["out_bean"]
 
-    account_mapper_type = "wechat"
-    if account_mapper_type == "wechat":
-        wechatRule = config["rules"]["wechat"]
+    account_type = "wechat"
+    if account_type == "wechat":
+        wechatRule = rules["wechat"]
 
         account_mapper = AccountMapper(
             target_file=target_file,
-            mapping_file=wechatRule["mapping_file"],
-            output_file=temp_format,
-            match_columns=wechatRule["match_columns"],
+            map=wechatRule,
+            output_file=temp_csv_path,
         )
         account_mapper.process_transactions()
 
-    beancount_mapper = BeancountMapper(temp_format)
+    # 转化后为 beancount
+    beancount_mapper = BeancountMapper(temp_csv_path)
     transactions = beancount_mapper.map_to_transactions()
-
-    beancount_helper = BeancountHelper(bean_path, log_obj, temp_format)
+    beancount_helper = BeancountHelper(bean_path, out_bean_path, log_obj)
     beancount_helper.write_transaction_list(transactions)

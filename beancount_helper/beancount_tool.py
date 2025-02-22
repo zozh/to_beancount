@@ -71,12 +71,12 @@ class BeancountHelper:
     """Beancount 工具类"""
 
     def __init__(
-        self, file_path: str, log_obj: logging.Logger, out_format: str
+        self, file_path: str, out_path: str, log_obj: logging.Logger
     ) -> NoReturn:
         self._file_path = file_path
-        self._entries, self._errors, self._options_map = self._load(file_path)
         self.log_obj = log_obj
-        self.out_format = out_format
+        self.out_path = out_path
+        self._entries, self._errors, self._options_map = self._load(file_path)
 
     def _load(self, file_path: str) -> tuple:
         """加载文件 Beancount
@@ -137,8 +137,8 @@ class BeancountHelper:
                 return False
 
             # 如果验证通过，重命名临时文件为唯一名称
-            new_file_name = f"{self.out_format}.bean"
-            new_file_path = os.path.join(beancount_dir, new_file_name)
+            # new_file_name = self.out_path
+            new_file_path = self.out_path
 
             # 添加日志记录
             self.log_obj.debug(f"Beancount 目录: {beancount_dir}")

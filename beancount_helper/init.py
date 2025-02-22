@@ -1,8 +1,41 @@
 import logging
 from pathlib import Path
 from log import LoggerManager
-from config import config
+from config import configs
 from typing import Tuple, NoReturn
+from tool import AppDataPath
+
+
+def convert_relative_paths_to_absolute(config: dict, path_converter) -> dict:
+    """
+    递归遍历配置字典，将所有以 'data/' 开头的相对路径转换为绝对路径。
+
+    Args:
+        config (dict): 配置字典。
+        path_converter (callable): 用于转换路径的可调用对象（如函数）。
+
+    Returns:
+        dict: 转换后的配置字典。
+    """
+    if isinstance(config, dict):
+        # 如果是字典，递归处理每个键值对
+        for key, value in config.items():
+            if isinstance(value, str) and value.startswith("data/"):
+                # 如果值是以 'data/' 开头的字符串，调用 path_converter 转换为绝对路径
+                config[key] = str(path_converter(value))
+            elif isinstance(value, (dict, list)):
+                # 如果值是字典或列表，递归处理
+                convert_relative_paths_to_absolute(value, path_converter)
+    elif isinstance(config, list):
+        # 如果是列表，递归处理每个元素
+        for i, item in enumerate(config):
+            if isinstance(item, str) and item.startswith("data/"):
+                # 如果元素是以 'data/' 开头的字符串，调用 path_converter 转换为绝对路径
+                config[i] = str(path_converter(item))
+            elif isinstance(item, (dict, list)):
+                # 如果元素是字典或列表，递归处理
+                convert_relative_paths_to_absolute(item, path_converter)
+    return config
 
 
 def ensure_directory_exists(path: Path) -> NoReturn:
@@ -40,20 +73,22 @@ def init_app() -> Tuple[dict, logging.Logger, Path, str]:
     Example:
         config_loader, log_obj, root_path, file_format = init_app()
     """
-    # 确保根目录存在
-    root_path = Path("/data/")
-    ensure_directory_exists(root_path)
-
     # 初始化日志管理器
-    log = config["app"]["log"]
+    app = configs["app"]
+    log = app["log"]
+    app_data_path = AppDataPath(app["name"], app["data_subdirectory"])
+    config = convert_relative_paths_to_absolute(
+        configs, app_data_path.get_absolute_path
+    )
+
     singleton_logger = LoggerManager(
-        name=config["app"]["name"],
+        name=app["name"],
         log_dir=log["path"],
         level=log["level"],
         log_fmt=log["fmt"],
         log_datefmt=log["datefmt"],
         log_colors=log["colors"],
     )
-    log_obj: logging.Logger = singleton_logger.get_logger()
+    log_obj = singleton_logger.get_logger()
 
-    return config, log_obj, root_path
+    return app, config["rules"], log_obj

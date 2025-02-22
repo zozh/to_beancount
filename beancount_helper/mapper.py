@@ -27,21 +27,23 @@ from pipeline import (
 
 class AccountMapper:
     def __init__(
-        self, target_file: str, mapping_file: str, output_file: str, match_columns: dict
+        self,
+        target_file: str,
+        map: dict,
+        output_file: str,
     ) -> NoReturn:
         """初始化 TransactionMapper 类。
         Args:
             target_file (str): 目标文件路径（CSV）。
-            mapping_file (str): 映射文件路径（Excel）。
+            map (dict): 映射规则字典。
             output_file (str): 输出文件路径（CSV）。
-            match_columns (dict): 匹配列的字典，包含匹配列和默认值。
         Returns:
             NoReturn
         """
         self.target_file = target_file
-        self.mapping_file = mapping_file
+        self.mapping_file = map["mapping_file"]
         self.output_file = output_file
-        self.match_columns = match_columns
+        self.match_columns = map["match_columns"]
 
     def generate_mask(
         self, mapping_row: pd.Series, transaction: pd.Series, columns: list

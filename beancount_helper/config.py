@@ -1,11 +1,19 @@
 from datetime import datetime
 import random
 
-config = {
+temp_format = (
+    f"{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{str(random.randint(1000, 9999))}"
+)
+
+configs = {
     "app": {
         "name": "beancount_helper",
+        "data_subdirectory": ["bean", "rule", "logs", "temp"],
+        "bean_path": "data/bean/moneybook.bean",
+        "out_bean": f"data/bean/{temp_format}.bean",
+        "temp_csv": f"data/temp/{temp_format}.csv",
         "log": {
-            "path": "logs",
+            "path": "data/logs",
             "level": "DEBUG",
             "fmt": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
@@ -17,11 +25,6 @@ config = {
                 "CRITICAL": "red",
             },
         },
-    },
-    "paths": {
-        "root_data": "data/",
-        "temp_format": f"{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{str(random.randint(1000, 9999))}",
-        "bean_path": "data/bean/moneybook.bean",
     },
     "rules": {
         "wechat": {
