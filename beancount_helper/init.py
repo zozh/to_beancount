@@ -1,8 +1,9 @@
+import pandas as pd
 import logging
 from pathlib import Path
 from log import LoggerManager
 from config import configs
-from typing import Tuple, NoReturn
+from typing import Tuple, NoReturn, List
 from tool import AppDataPath
 
 
@@ -56,7 +57,7 @@ def ensure_directory_exists(path: Path) -> NoReturn:
         path.mkdir(parents=True, exist_ok=True)
 
 
-def init_app() -> Tuple[dict, logging.Logger, Path, str]:
+def config_load() -> Tuple[dict, logging.Logger, Path, str]:
     """
     初始化应用程序的基本组件。
 
@@ -91,4 +92,53 @@ def init_app() -> Tuple[dict, logging.Logger, Path, str]:
     )
     log_obj = singleton_logger.get_logger()
 
-    return app, config["rules"], log_obj
+    return (app, config["rules"], log_obj, app_data_path.get_path())
+
+
+def init_xlsx(
+    expenses_columns: List[str], assets_columns: List[str], target_path: Path
+) -> NoReturn:
+    """初始化 xlsx 表
+
+    Args:
+        expenses_columns (List[str]): expenses 表的列
+        assets_columns (List[str]): assets 表的列
+        target_path (Path): 目标路径
+
+    Returns:
+        NoReturn
+    """
+    # 创建Expenses工作表
+    expenses_df = pd.DataFrame(columns=expenses_columns)
+    # 创建Assets工作表
+    assets_df = pd.DataFrame(columns=assets_columns)
+    # 导出到Excel
+    with pd.ExcelWriter(target_path) as writer:
+        expenses_df.to_excel(writer, sheet_name="Expenses", index=False)
+        assets_df.to_excel(writer, sheet_name="Assets", index=False)
+
+
+def init_wechat_rule(root):
+    """初始化 wechat_rule.xlsx
+
+    Args:
+        root (Path): 规则存放路径
+    """
+    init_xlsx(
+        ["编号", "交易类型", "交易对方", "商品", "值", "备注"],
+        ["编号", "交易类型", "支付方式", "当前状态", "值", "备注"],
+        root / "wechat_rule.xlsx",
+    )
+
+
+def init_alipay_rule(root: Path):
+    """初始化 alipay_rule.xlsx
+
+    Args:
+        root (Path): 规则存放路径
+    """
+    init_xlsx(
+        ["编号", "交易分类", "交易对方", "商品说明", "值", "备注"],
+        ["编号", "收/付款方式", "值", "备注"],
+        root / "alipay_rule.xlsx",
+    )

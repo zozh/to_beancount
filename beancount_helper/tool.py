@@ -54,15 +54,47 @@ class AppDataPath(metaclass=SingletonMeta):
         self.subdirectory = subdirectory
 
         # 创建基础目录及子目录
-        self._create_directories()
+        self.create_directories()
 
-    def _create_directories(self):
+    def create_directories(self, is_cover: bool = False):
         """
         创建基础目录和所有子目录。
+
+        Args:
+            is_cover (bool): 是否覆盖已存在的目录。如果为 True，则删除并重新创建目录；
+                            如果为 False，则仅在目录不存在时创建。
         """
+        # 如果需要覆盖且基础目录存在，则直接删除整个基础目录
+        if is_cover and self.base_path.exists():
+            self._remove_directory(self.base_path)
+
+        # 创建基础目录
         self.base_path.mkdir(parents=True, exist_ok=True)
+
+        # 创建子目录
         for subdir in self.subdirectory:
-            (self.base_path / subdir).mkdir(exist_ok=True)
+            subdir_path = self.base_path / subdir
+            subdir_path.mkdir(exist_ok=True)
+
+    def _remove_directory(self, directory: Path):
+        """
+        递归删除目录及其内容。
+
+        Args:
+            directory (Path): 要删除的目录路径。
+        """
+        if not directory.exists():
+            return  # 如果目录不存在，直接返回
+
+        for item in directory.iterdir():
+            if item.is_dir():
+                # 递归删除子目录
+                self._remove_directory(item)
+            else:
+                # 删除文件
+                item.unlink()
+        # 删除空目录
+        directory.rmdir()
 
     def __repr__(self):
         return f"AppDataPath(app_name='{self.app_name}', base_path='{self.base_path}')"
