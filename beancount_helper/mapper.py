@@ -13,7 +13,16 @@ __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
 __license__ = None
 
 import pandas as pd
-from typing import NoReturn
+from typing import NoReturn, List, Dict
+from beancount_tool import Transaction
+from pipeline import (
+    to_data,
+    to_amount,
+    to_remark,
+    to_status,
+    to_description,
+    to_currency,
+)
 
 
 class AccountMapper:
@@ -47,7 +56,8 @@ class AccountMapper:
         """
         conditions = []
         for col in columns:
-            if pd.notna(mapping_row[col]):  # 如果映射表中的该项不为空
+            # 如果映射表中的该项不为空
+            if pd.notna(mapping_row[col]):
                 conditions.append(mapping_row[col] == transaction[col])
         return all(conditions) if conditions else False
 
@@ -124,21 +134,73 @@ class AccountMapper:
             target_df.to_csv(self.output_file, index=False, encoding="gb18030")
 
 
-if __name__ == "__main__":
-    # 创建TransactionMapper实例并处理交易数据
-    mapper = AccountMapper(
-        target_file=r"data\bill\微信支付账单(20250101-20250221).csv",
-        mapping_file=r"data\wechat_rule.xlsx",
-        output_file=r"mapped_target.csv",
-        match_columns={
-            "expenses": {
-                "columns": ["交易类型", "交易对方", "商品"],
-                "default": "Expenses:Node",
-            },
-            "assets": {
-                "columns": ["支付方式"],
-                "default": "Assets:Node",
-            },
-        },
-    )
-    mapper.process_transactions()
+class BeancountMapper:
+    """Beancount 映射器，用于将目标表数据映射为 Transaction 对象"""
+
+    def __init__(self, target_file: str) -> NoReturn:
+        """
+        初始化 BeancountMapper。
+
+        Args:
+            rule (dict): 匹配规则。
+        """
+        self.df = pd.read_csv(target_file, encoding="gb18030")
+
+    def map_to_transactions(self) -> List[Transaction]:
+        """
+        将 DataFrame 中的数据映射为 Transaction 字典列表。
+
+        Args:
+            df (pd.DataFrame): 输入的目标表数据。
+
+        Returns:
+            List[Dict]: 映射后的 Transaction 字典列表。
+        """
+        transactions = []
+        for _, row in self.df.iterrows():
+            transaction = self._map_row_to_transaction(row)
+            if transaction:
+                transactions.append(Transaction.from_dict(transaction))
+        return transactions
+
+    def _map_row_to_transaction(self, row: pd.Series) -> Dict:
+        """
+        将单行数据映射为 Transaction 字典。
+
+        Args:
+            row (pd.Series): 单行数据。
+
+        Returns:
+            Dict: 映射后的 Transaction 字典。
+        """
+        # 构建数据处理管道
+        pipelines = [
+            to_data("交易时间", "%Y-%m-%d %H:%M:%S"),
+            to_amount("金额(元)"),
+            to_remark(["备注", "交易单号"], "wechat"),
+            to_status("*"),
+            to_description("交易对方"),
+            to_currency("CNY"),
+        ]
+
+        # 执行管道处理
+        data = row.to_dict()
+        for func in pipelines:
+            data = func(data)
+
+        # 确保字段完整
+        if not all(
+            key in data
+            for key in [
+                "date",
+                "status",
+                "description",
+                "amount",
+                "currency",
+                "remark",
+                "debit",
+                "credit",
+            ]
+        ):
+            return None
+        return data

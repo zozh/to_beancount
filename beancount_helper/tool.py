@@ -1,74 +1,28 @@
-#!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-"""
-@Filename : tool.py
-@Author : ZouZhao
-@Contact : wszwc3721@163.com
-@Time : 2025/02/21 21:34
-@License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
-@Description : 工具
-"""
-
-__copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
-__license__ = None
-
-from typing import TypeVar, Callable, Type, Any
-
-T = TypeVar("T")
-
-
-def singleton(cls: Type[T]) -> Callable[..., T]:
+class SingletonMeta(type):
     """
-    单例模式装饰器，确保类只有一个实例。
+    单例模式的元类实现。
 
-    Args:
-        cls (Type[T]): 需要被装饰的类。
-
-    Returns:
-        Callable[..., T]: 返回一个函数，该函数用于创建或获取类的单例实例。
+    该元类确保所有使用它的类只会有一个实例。
     """
-    instances = {}
 
-    def get_instance(*args: Any, **kwargs: Any) -> T:
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
         """
-        创建或返回类的单例实例。
+        调用类时触发的方法。
+
+        如果类的实例已经存在，则直接返回该实例；
+        否则，创建一个新的实例并保存。
 
         Args:
-            *args (Any): 传递给类构造函数的参数。
-            **kwargs (Any): 传递给类构造函数的关键字参数。
+            cls (type): 当前类。
+            *args: 可变参数，传递给类的构造函数。
+            **kwargs: 关键字参数，传递给类的构造函数。
 
         Returns:
-            T: 类的单例实例。
+            object: 类的唯一实例。
         """
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-
-    return get_instance
-
-
-if __name__ == "__main__":
-    # 测试
-    class Example:
-        def __init__(self, name: str):
-            self.name = name
-
-        def __repr__(self):
-            return f"Example(name={self.name})"
-
-    # 装饰类
-    singleton_example = singleton(Example)
-
-    # 创建实例
-    instance1 = singleton_example("Instance1")
-    # 输出: Example(name=Instance1)
-    print(instance1)
-
-    # 尝试创建另一个实例
-    instance2 = singleton_example("Instance2")
-    # 输出: Example(name=Instance1)
-    print(instance2)
-
-    # 测试单例行为
-    # 输出: True
-    print(instance1 is instance2)
+        if cls not in cls._instances:
+            # 如果类还没有实例化，则创建一个实例并保存
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]

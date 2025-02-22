@@ -13,21 +13,12 @@ __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
 __license__ = None
 
 import os
-import time
-import shutil
+import logging
+import tempfile
 import subprocess
-
-
+from beancount import loader
 from typing import NoReturn, List, Tuple
 from dataclasses import dataclass, fields
-
-from beancount import loader
-from beancount.core.data import Open
-
-from log import LoggerManager
-
-singleton_logger = LoggerManager()
-log_obj = singleton_logger.get_logger()
 
 
 @dataclass
@@ -37,8 +28,8 @@ class Transaction:
     date: str = None
     status: str = None
     description: str = None
-    in_account: str = None
-    out_account: str = None
+    debit: str = None
+    credit: str = None
     amount: float = None
     currency: str = None
     remark: str = None
@@ -54,8 +45,8 @@ class Transaction:
             str: 转换后的字符串
         """
         one = f'\n{self.date} {self.status} "{self.description}" "{self.remark}"\n'
-        two = f"\t{self.in_account}\t\t\t{self.amount} {self.currency}\n"
-        three = f"\t{self.out_account}\t\t\t-{self.amount} {self.currency}\n"
+        two = f"\t{self.debit}\t\t\t{self.amount} {self.currency}\n"
+        three = f"\t{self.credit}\t\t\t-{self.amount} {self.currency}\n"
         return one + two + three
 
     @classmethod
@@ -79,27 +70,13 @@ class Transaction:
 class BeancountHelper:
     """Beancount 工具类"""
 
-    def __init__(self, file_path: str) -> NoReturn:
+    def __init__(
+        self, file_path: str, log_obj: logging.Logger, out_format: str
+    ) -> NoReturn:
         self._file_path = file_path
         self._entries, self._errors, self._options_map = self._load(file_path)
-        self._account_list = []
-        self._backup_path = file_path + ".backup"
-
-    def _backup_file(self) -> NoReturn:
-        """备份 Beancount 文件
-
-        Returns:
-            NoReturn
-        """
-        shutil.copy(self._file_path, self._backup_path)
-
-    def _restore_backup(self) -> NoReturn:
-        """恢复 Beancount 文件备份
-
-        Returns:
-            NoReturn
-        """
-        shutil.copy(self._backup_path, self._file_path)
+        self.log_obj = log_obj
+        self.out_format = out_format
 
     def _load(self, file_path: str) -> tuple:
         """加载文件 Beancount
@@ -120,15 +97,101 @@ class BeancountHelper:
 
         if errors:
             for error in errors:
-                log_obj.error(f"={error}")
+                self.log_obj.error(f"={error}")
             raise ValueError(file_path, "Invalid file format")
         return entries, errors, options_map
 
-    def _check_syntax(self) -> Tuple[str, bool]:
-        """检查格式
+    def write_transaction_list(self, transaction_list: List[Transaction]) -> bool:
+        """
+        向 Beancount 文件写入 Transaction 列表，并进行格式验证和回滚。
+
+        Args:
+            transaction_list (List[Transaction]): 交易数据类列表。
 
         Returns:
-            Tuple(str, bool):
+            bool: 写入成功返回 True，否则返回 False。
+        """
+        try:
+            # 获取 Beancount 文件所在目录
+            beancount_dir = os.path.dirname(os.path.abspath(self._file_path))
+
+            # 在 Beancount 文件所在目录创建临时文件
+            with tempfile.NamedTemporaryFile(
+                mode="w+",
+                delete=False,
+                suffix=".bean",
+                dir=beancount_dir,
+                encoding="utf-8",
+            ) as temp_file:
+                temp_file_path = temp_file.name
+
+                # 写入交易记录
+                for transaction in transaction_list:
+                    temp_file.write(transaction.get_str())
+
+            # 验证 Beancount 文件格式
+            is_valid, _ = self._check_syntax()
+            if not is_valid:
+                self.log_obj.error("写入的交易记录导致文件格式无效，正在进行回滚...")
+                self._rollback_include(temp_file_path)
+                return False
+
+            # 如果验证通过，重命名临时文件为唯一名称
+            new_file_name = f"{self.out_format}.bean"
+            new_file_path = os.path.join(beancount_dir, new_file_name)
+
+            # 添加日志记录
+            self.log_obj.debug(f"Beancount 目录: {beancount_dir}")
+            self.log_obj.debug(f"临时文件路径: {temp_file_path}")
+            self.log_obj.debug(f"新文件路径: {new_file_path}")
+
+            os.rename(temp_file_path, new_file_path)
+
+            # 更新 include 行
+            include_line = (
+                f'include "{os.path.relpath(new_file_path, start=beancount_dir)}"\n'
+            )
+            with open(self._file_path, "a", encoding="utf-8") as main_file:
+                main_file.write("\n;【新增交易记录】\n")
+                main_file.write(include_line)
+
+            self.log_obj.info("交易记录写入成功！")
+            return True
+
+        except Exception as e:
+            self.log_obj.error(f"写入交易记录时发生错误: {e}")
+            return False
+
+    def _rollback_include(self, temp_file_path: str) -> None:
+        """
+        回滚 include 引入的临时文件。
+
+        Args:
+            temp_file_path (str): 临时文件路径。
+        """
+        # 删除 include 行
+        lines = []
+        with open(self._file_path, "r", encoding="utf-8") as main_file:
+            lines = main_file.readlines()
+
+        with open(self._file_path, "w", encoding="utf-8") as main_file:
+            for line in lines:
+                if not line.strip().startswith(
+                    f'include "{os.path.basename(temp_file_path)}"'
+                ):
+                    main_file.write(line)
+
+        # 删除临时文件
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+        self.log_obj.info("回滚完成！")
+
+    def _check_syntax(self) -> Tuple[bool, str]:
+        """检查 Beancount 文件格式。
+
+        Returns:
+            Tuple[bool, str]: (是否有效, 错误信息或 "Successful")
         """
         command = ["bean-check", self._file_path]
         result = subprocess.run(
@@ -136,53 +199,8 @@ class BeancountHelper:
         )
 
         if result.stderr:
-            return result.stderr, False
+            self.log_obj.error(f"格式检查失败: {result.stderr}")
+            return False, result.stderr
         else:
-            return "Successful", True
-
-    def get_account_info(self, entries: Open) -> NoReturn:
-        """获得账户信息列表
-
-        Args:
-            entries (Open): 按日期排序的条目列表
-
-        Returns:
-            NoReturn
-        """
-        for entry in entries:
-            if isinstance(entry, Open):
-                self._account_list.append(entry.account)
-
-    def write_transaction_list(self, transaction_list: List[Transaction]) -> NoReturn:
-        """向 Beancount 文件写入 Transaction 列表，并进行格式验证和回滚
-
-        Args:
-            transaction_list (List[Transaction]): 交易数据类
-
-        Returns:
-            NoReturn
-        """
-        # 备份原始文件
-        self._backup_file()
-
-        try:
-            # 写入交易数据
-            with open(self._file_path, "a", encoding="utf-8") as file_obj:
-                now_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                file_obj.write(f"\n; to_beancount {now_time} start\n")
-
-                for transaction in transaction_list:
-                    file_obj.write(transaction.get_str())
-                file_obj.write(f"\n; to_beancount {now_time} end\n")
-
-            result, status = self._check_syntax()
-            if not status:
-                raise ValueError(result)
-        except Exception as error:
-            # 发生其他异常，回滚文件并抛出异常
-            self._restore_backup()
-            log_obj.error(f"{error}")
-
-        finally:
-            # 删除备份文件
-            os.remove(self._backup_path)
+            self.log_obj.info("格式检查成功！")
+            return True, "Successful"

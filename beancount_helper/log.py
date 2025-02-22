@@ -17,23 +17,48 @@ import logging
 import colorlog
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from tool import singleton
-from config import Config
+from typing import Dict
+from tool import SingletonMeta
 
 
-@singleton
-class LoggerManager:
+class LoggerManager(metaclass=SingletonMeta):
     _instance = None
 
     def __init__(
         self,
-        name: str = Config.app_name,
-        log_dir: str = Config.log_path,
-        level: int = Config.log_level,
+        name: str,
+        log_dir: str,
+        level: int,
+        log_fmt: str,
+        log_datefmt: str,
+        log_colors: Dict[str, str],
     ):
+        """
+        初始化日志管理器。
+
+        Args:
+            name (str): 日志记录器名称。
+            log_dir (str): 日志文件存储目录。
+            level (int): 日志级别。
+            log_fmt (str): 日志格式。
+            log_datefmt (str): 日期格式。
+            log_colors (Dict[str, str]): 日志颜色配置。
+        """
+        # 避免重复初始化
+        if hasattr(self, "initialized"):
+            return
+
         self.name = name
         self.log_dir = log_dir
         self.level = level
+        self.log_fmt = log_fmt
+        self.log_datefmt = log_datefmt
+        self.log_colors = log_colors
+
+        # 标记已初始化
+        self.initialized = True
+
+        # 初始化日志记录器
         self._setup_logger()
 
     def _setup_logger(self):
@@ -49,7 +74,9 @@ class LoggerManager:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(
             colorlog.ColoredFormatter(
-                Config.log_fmt, Config.log_datefmt, Config.log_colors
+                fmt=self.log_fmt,
+                datefmt=self.log_datefmt,
+                log_colors=self.log_colors,
             )
         )
         logger.addHandler(console_handler)
@@ -66,7 +93,7 @@ class LoggerManager:
             encoding="utf-8",
         )
         file_handler.setFormatter(
-            logging.Formatter(Config.log_fmt, Config.log_datefmt, Config.log_colors)
+            logging.Formatter(fmt=self.log_fmt, datefmt=self.log_datefmt)
         )
         logger.addHandler(file_handler)
 
