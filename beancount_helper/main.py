@@ -22,7 +22,7 @@ from pathlib import Path
 from tool import AppDataPath
 from typing import NoReturn, Tuple, Dict
 from mapper import AccountMapper, BeancountMapper
-from beancount_tool import BeancountHelper
+from beancount_helper.conversion import BeancountHelper
 from init import config_load, init_wechat_rule, init_alipay_rule
 
 
@@ -33,7 +33,7 @@ def parse_arguments() -> argparse.Namespace:
         argparse.Namespace: 包含解析后的参数的命名空间对象.
     """
     parser = argparse.ArgumentParser(description="beancount_helper", add_help=False)
-    # 解析参数
+
     parser.add_argument("-h", "--help", action="help", help="显示此帮助消息并退出")
     parser.add_argument(
         "-r",
@@ -72,9 +72,9 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="将 csv 文件转换为 beancount 文件格式",
     )
-    # 解析参数
+
     args = parser.parse_args()
-    # 验证 --target_path 的逻辑约束
+
     if args.target_path:
         if not (args.account_type or args.to_beancount):
             parser.error(
@@ -108,10 +108,10 @@ def get_random_available_port(port_range: range) -> int:
         ValueError: 如果指定范围内没有可用端口，抛出此异常。
     """
     shuffled_ports = list(port_range)
-    random.shuffle(shuffled_ports)  # 打乱端口顺序以随机选择
+    random.shuffle(shuffled_ports)
     for port in shuffled_ports:
         if is_port_available(port):
-            return port  # 找到第一个可用端口立即返回
+            return port
     raise ValueError("No available ports found in the specified range.")
 
 
@@ -148,16 +148,16 @@ def monitor_fava_output(process: subprocess.Popen) -> Tuple[bool, str]:
     error_pattern = re.compile(r"Error:")
     while True:
         line = process.stdout.readline()
-        if not line:  # 输出流结束
+        if not line:
             break
-        print(line, end="")  # 打印 Fava 的输出
-        # 检查是否成功启动
+        print(line, end="")
+
         url_match = url_pattern.search(line)
         if url_match:
             url = url_match.group(1)
             print("Fava started successfully!")
             return True, url
-        # 检查是否出现错误
+
         if error_pattern.search(line):
             error_message = f"Fava encountered an error: {line.strip()}"
             return False, error_message
@@ -171,8 +171,8 @@ def run_fava(target_path: Path) -> NoReturn:
     Args:
         target_path (Path): Beancount 文件的路径。
     """
-    # 检查端口是否被占用，如被占用，随机选择一个端口
-    port_range = range(5000, 5100)  # 定义端口范围
+
+    port_range = range(5000, 5100)
     port = get_random_available_port(port_range)
     fava_process = start_fava(target_path, port)
     status, message = monitor_fava_output(fava_process)
@@ -256,12 +256,12 @@ def close_and_remove_handlers(logger: logging.Logger) -> NoReturn:
     """
     if not isinstance(logger, logging.Logger):
         raise ValueError("提供的参数不是有效的 logging.Logger 对象")
-    # 遍历所有处理器
-    for handler in logger.handlers[:]:  # 使用切片避免修改列表时的迭代问题
+
+    for handler in logger.handlers[:]:
         if isinstance(handler, logging.FileHandler):
-            # 关闭文件句柄
+
             handler.close()
-            # 移除处理器
+
             logger.removeHandler(handler)
 
 

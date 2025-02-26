@@ -44,7 +44,7 @@ class LoggerManager(metaclass=SingletonMeta):
             log_datefmt (str): 日期格式。
             log_colors (Dict[str, str]): 日志颜色配置。
         """
-        # 避免重复初始化
+
         if hasattr(self, "initialized"):
             return
 
@@ -55,22 +55,18 @@ class LoggerManager(metaclass=SingletonMeta):
         self.log_datefmt = log_datefmt
         self.log_colors = log_colors
 
-        # 标记已初始化
         self.initialized = True
 
-        # 初始化日志记录器
         self._setup_logger()
 
     def _setup_logger(self):
-        # 确保日志目录存在
+
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
-        # 创建 logger
         logger = logging.getLogger(self.name)
         logger.setLevel(self.level)
 
-        # 配置控制台处理器
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(
             colorlog.ColoredFormatter(
@@ -81,7 +77,6 @@ class LoggerManager(metaclass=SingletonMeta):
         )
         logger.addHandler(console_handler)
 
-        # 配置文件处理器
         log_file = os.path.join(
             self.log_dir, f'log_{datetime.now().strftime("%Y-%m-%d")}.log'
         )

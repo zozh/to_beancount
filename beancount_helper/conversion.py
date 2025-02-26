@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 """
-@Filename : beancount_tool.py
+@Filename : conversion.py
 @Author : ZouZhao
 @Contact : wszwc3721@163.com
 @Time : 2024/12/28 15:51
 @License : Copyright (c) 2024 by ZouZhao, All Rights Reserved.
-@Description : Beancount 助手
+@Description : Beancount 格式转化
 """
 
 __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
@@ -112,10 +112,7 @@ class BeancountHelper:
             bool: 写入成功返回 True，否则返回 False。
         """
         try:
-            # 获取 Beancount 文件所在目录
             beancount_dir = os.path.dirname(os.path.abspath(self._file_path))
-
-            # 在 Beancount 文件所在目录创建临时文件
             with tempfile.NamedTemporaryFile(
                 mode="w+",
                 delete=False,
@@ -125,22 +122,16 @@ class BeancountHelper:
             ) as temp_file:
                 temp_file_path = temp_file.name
 
-                # 写入交易记录
                 for transaction in transaction_list:
                     temp_file.write(transaction.get_str())
 
-            # 验证 Beancount 文件格式
             is_valid, _ = self._check_syntax()
             if not is_valid:
                 self.log_obj.error("写入的交易记录导致文件格式无效，正在进行回滚...")
                 self._rollback_include(temp_file_path)
                 return False
 
-            # 如果验证通过，重命名临时文件为唯一名称
-            # new_file_name = self.out_path
             new_file_path = self.out_path
-
-            # 添加日志记录
             self.log_obj.debug(f"Beancount 目录: {beancount_dir}")
             self.log_obj.debug(f"临时文件路径: {temp_file_path}")
             self.log_obj.debug(f"新文件路径: {new_file_path}")
@@ -169,7 +160,6 @@ class BeancountHelper:
         Args:
             temp_file_path (str): 临时文件路径。
         """
-        # 删除 include 行
         lines = []
         with open(self._file_path, "r", encoding="utf-8") as main_file:
             lines = main_file.readlines()
@@ -181,7 +171,6 @@ class BeancountHelper:
                 ):
                     main_file.write(line)
 
-        # 删除临时文件
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 

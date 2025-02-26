@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+"""
+@Filename : init.py
+@Author : ZouZhao
+@Contact : wszwc3721@163.com
+@Time : 2025/02/26 13:21
+@License : Copyright (c) 2025 by ZouZhao, All Rights Reserved.
+@Description : 初始化
+"""
+
+__copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
+__license__ = None
+
 import pandas as pd
 import logging
 from pathlib import Path
@@ -19,22 +33,17 @@ def convert_relative_paths_to_absolute(config: dict, path_converter) -> dict:
         dict: 转换后的配置字典。
     """
     if isinstance(config, dict):
-        # 如果是字典，递归处理每个键值对
         for key, value in config.items():
             if isinstance(value, str) and value.startswith("data/"):
-                # 如果值是以 'data/' 开头的字符串，调用 path_converter 转换为绝对路径
                 config[key] = str(path_converter(value))
             elif isinstance(value, (dict, list)):
-                # 如果值是字典或列表，递归处理
                 convert_relative_paths_to_absolute(value, path_converter)
+
     elif isinstance(config, list):
-        # 如果是列表，递归处理每个元素
         for i, item in enumerate(config):
             if isinstance(item, str) and item.startswith("data/"):
-                # 如果元素是以 'data/' 开头的字符串，调用 path_converter 转换为绝对路径
                 config[i] = str(path_converter(item))
             elif isinstance(item, (dict, list)):
-                # 如果元素是字典或列表，递归处理
                 convert_relative_paths_to_absolute(item, path_converter)
     return config
 
@@ -74,7 +83,6 @@ def config_load() -> Tuple[dict, logging.Logger, Path, str]:
     Example:
         config_loader, log_obj, root_path, file_format = init_app()
     """
-    # 初始化日志管理器
     app = configs["app"]
     log = app["log"]
     app_data_path = AppDataPath(app["name"], app["data_subdirectory"])
@@ -108,11 +116,8 @@ def init_xlsx(
     Returns:
         NoReturn
     """
-    # 创建Expenses工作表
     expenses_df = pd.DataFrame(columns=expenses_columns)
-    # 创建Assets工作表
     assets_df = pd.DataFrame(columns=assets_columns)
-    # 导出到Excel
     with pd.ExcelWriter(target_path) as writer:
         expenses_df.to_excel(writer, sheet_name="Expenses", index=False)
         assets_df.to_excel(writer, sheet_name="Assets", index=False)

@@ -14,7 +14,7 @@ __license__ = None
 
 import pandas as pd
 from typing import NoReturn, List, Dict
-from beancount_tool import Transaction
+from beancount_helper.conversion import Transaction
 from pipeline import (
     to_data,
     to_amount,
@@ -33,11 +33,13 @@ class AccountMapper:
         output_file: str,
     ) -> NoReturn:
         """初始化 TransactionMapper 类。
+
         Args:
             target_file (str): 目标文件路径（CSV）。
             map (dict): 映射规则字典。
             output_file (str): 输出文件路径（CSV）。
         Returns:
+
             NoReturn
         """
         self.target_file = target_file
@@ -49,16 +51,17 @@ class AccountMapper:
         self, mapping_row: pd.Series, transaction: pd.Series, columns: list
     ) -> bool:
         """生成匹配条件的辅助函数。
+
         Args:
             mapping_row (pd.Series): 映射表中的一行数据。
             transaction (pd.Series): 交易数据。
             columns (list): 匹配列。
         Returns:
+
             bool: 是否满足匹配条件。
         """
         conditions = []
         for col in columns:
-            # 如果映射表中的该项不为空
             if pd.notna(mapping_row[col]):
                 conditions.append(mapping_row[col] == transaction[col])
         return all(conditions) if conditions else False
@@ -67,10 +70,12 @@ class AccountMapper:
         self, transaction: pd.Series, mapping_table: pd.DataFrame, mapping_type: str
     ) -> tuple:
         """通用匹配方法，用于匹配费用或资产信息。
+
         Args:
             transaction (pd.Series): 交易数据。
             mapping_table (pd.DataFrame): 映射表。
             mapping_type (str): 匹配类型（如 "expenses" 或 "assets"）。
+
         Returns:
             tuple: 匹配结果（编号和值），如果未匹配则返回默认值。
         """
@@ -78,7 +83,6 @@ class AccountMapper:
         match_columns = match_info.get("columns", [])
         default_value = match_info.get("default", None)
 
-        # 将默认值转换为长度为 2 的元组
         if isinstance(default_value, str):
             default_value = (None, default_value)
 
@@ -96,30 +100,26 @@ class AccountMapper:
                 if self.generate_mask(mapping_row, transaction, match_columns):
                     return mapping_row["编号"], mapping_row["值"]
 
-        # 返回默认值
         return default_value
 
     def process_transactions(self) -> NoReturn:
         """处理交易数据并保存结果。
+
         Returns:
             NoReturn
         """
-        # 读取目标表（CSV）
         target_df = pd.read_csv(self.target_file, skiprows=16, encoding="utf8")
 
-        # 读取映射关系表（Excel）
         expenses_mapping = pd.read_excel(self.mapping_file, sheet_name="Expenses")
         assets_mapping = pd.read_excel(self.mapping_file, sheet_name="Assets")
 
-        # 初始化结果列
         target_df["debit_id"] = None
         target_df["debit"] = None
         target_df["credit_id"] = None
         target_df["credit"] = None
 
-        # 遍历每笔交易
         for index, transaction in target_df.iterrows():
-            # 映射Expenses
+
             debit_id, debit = self.map_generic(
                 transaction, expenses_mapping, "expenses"
             )
@@ -175,7 +175,6 @@ class BeancountMapper:
         Returns:
             Dict: 映射后的 Transaction 字典。
         """
-        # 构建数据处理管道
         pipelines = [
             to_data("交易时间", "%Y-%m-%d %H:%M:%S"),
             to_amount("金额(元)"),
@@ -185,12 +184,10 @@ class BeancountMapper:
             to_currency("CNY"),
         ]
 
-        # 执行管道处理
         data = row.to_dict()
         for func in pipelines:
             data = func(data)
 
-        # 确保字段完整
         if not all(
             key in data
             for key in [

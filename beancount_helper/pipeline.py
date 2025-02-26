@@ -78,16 +78,13 @@ def to_remark(remark_keys: list, source: str) -> PipeFunc:
     """
 
     def _to_remark(data: Dict) -> Dict:
-        # 提取有效值并清洗
         remark_parts = [
             str(data[key]).strip()
             for key in remark_keys
             if key in data and data[key] != "/"
         ]
-        # 保留原始备注内容
         if "remark" in data and data["remark"] != "/":
             remark_parts.insert(0, data["remark"].strip())
-        # 合并为最终备注
         remark_parts.append(source)
         data["remark"] = " | ".join(remark_parts)
         return data
