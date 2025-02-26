@@ -60,9 +60,7 @@ class Transaction:
         Returns:
             Transaction: 初始化的 Transaction 对象。
         """
-        # 获取所有字段名称
         field_set = {f.name for f in fields(cls)}
-        # 过滤掉字典中不存在于字段中的键，并将字段名映射到字典值
         filtered_data = {k: v for k, v in data.items() if k in field_set}
         return cls(**filtered_data)
 
@@ -138,7 +136,6 @@ class BeancountHelper:
 
             os.rename(temp_file_path, new_file_path)
 
-            # 更新 include 行
             include_line = (
                 f'include "{os.path.relpath(new_file_path, start=beancount_dir)}"\n'
             )

@@ -13,8 +13,52 @@ __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
 __license__ = None
 
 import os
+import chardet
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
+
+
+def detect_encoding(file_path: str) -> Tuple[str, str]:
+    """
+    检测指定文件的编码格式，并返回检测结果与执行消息。
+
+    Args:
+        file_path (str): 要检测编码的文件路径。
+
+    Returns:
+        Tuple[str, str]: 返回一个元组，包含两个字符串：
+            - 第一个字符串：检测到的编码格式名称（如 'utf-8'、'gbk' 等），或 'unknown' 表示无法检测。
+            - 第二个字符串：执行消息，如 'succeed' 表示成功，或具体的错误消息。
+
+    Raises:
+        FileNotFoundError: 如果指定的文件路径不存在。
+        IOError: 如果读取文件时发生其他 I/O 错误。
+
+    Example:
+        >>> encoding, message = detect_encoding("example_file.csv")
+        >>> print(f"Encoding: {encoding}, Message: {message}")
+        Encoding: utf-8, Message: succeed
+
+    Note:
+        该函数依赖于 `chardet` 库的检测算法，其结果可能并非总是完全准确。
+        对于某些文件，尤其是编码格式不明确或文件内容较少时，检测结果可能不准确。
+        在这种情况下，可能需要手动指定文件的编码格式。
+
+    """
+    try:
+        with open(file_path, "rb") as file:
+            raw_data = file.read()
+            result = chardet.detect(raw_data)
+            encoding = result["encoding"]
+            confidence = result["confidence"]
+            if encoding:
+                return encoding, f"succeed (confidence: {confidence:.2f})"
+            else:
+                return "unknown", "Failed to detect encoding."
+    except FileNotFoundError:
+        return "unknown", f"Error: The file '{file_path}' does not exist."
+    except IOError as e:
+        return "unknown", f"Error: An I/O error occurred while reading the file: {e}"
 
 
 class SingletonMeta(type):

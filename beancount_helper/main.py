@@ -10,6 +10,8 @@
 """
 __copyright__ = "Copyright (c) 2025 by ZouZhao, All Rights Reserved."
 __license__ = None
+
+import os
 import re
 import time
 import socket
@@ -20,9 +22,9 @@ import subprocess
 import webbrowser
 from pathlib import Path
 from tool import AppDataPath
-from typing import NoReturn, Tuple, Dict
+from typing import NoReturn, Tuple, Dict, List, Union
 from mapper import AccountMapper, BeancountMapper
-from beancount_helper.conversion import BeancountHelper
+from conversion import BeancountHelper
 from init import config_load, init_wechat_rule, init_alipay_rule
 
 
@@ -48,10 +50,16 @@ def parse_arguments() -> argparse.Namespace:
         help="初始化应用，只能单独使用",
     )
     parser.add_argument(
-        "-g",
+        "-gc",
         "--get_config",
         action="store_true",
         help="获取配置路径路径，只能单独使用",
+    )
+    parser.add_argument(
+        "-gr",
+        "--get_rules",
+        type=str,
+        help="使用默认应用打开规则文件，只能单独使用",
     )
     parser.add_argument(
         "-t",
@@ -87,8 +95,10 @@ def is_port_available(port: int) -> bool:
     """
     检查指定端口是否可用。
     使用 socket 尝试连接到指定端口，如果连接失败，则端口可用。
+
     Args:
         port (int): 要检查的端口号。
+
     Returns:
         bool: 如果端口可用，返回 True；否则返回 False。
     """
@@ -100,10 +110,13 @@ def get_random_available_port(port_range: range) -> int:
     """
     从指定范围内随机选择一个可用端口。
     首先打乱端口范围的顺序，然后依次检查每个端口是否可用，返回第一个可用端口。
+
     Args:
         port_range (range): 要检查的端口范围。
+
     Returns:
         int: 第一个可用的端口号。
+
     Raises:
         ValueError: 如果指定范围内没有可用端口，抛出此异常。
     """
@@ -118,9 +131,11 @@ def get_random_available_port(port_range: range) -> int:
 def start_fava(target_path: Path, port: int) -> subprocess.Popen:
     """
     启动 Fava 并返回进程对象。
+
     Args:
         target_path (Path): Beancount 文件的路径。
         port (int): Fava 要监听的端口号。
+
     Returns:
         subprocess.Popen: Fava 进程对象。
     """
@@ -139,8 +154,10 @@ def monitor_fava_output(process: subprocess.Popen) -> Tuple[bool, str]:
     """
     监控 Fava 输出，检查是否成功启动或出现错误。
     逐行读取 Fava 的输出，检查是否包含启动成功的 URL 或错误信息。
+
     Args:
         process (subprocess.Popen): Fava 进程对象。
+
     Returns:
         Tuple[bool, str]: 如果 Fava 成功启动，返回 (True, url)；如果失败，返回 (False, error_message)。
     """
@@ -168,8 +185,12 @@ def run_fava(target_path: Path) -> NoReturn:
     """
     启动 Fava 并处理端口分配和错误。
     主函数，负责选择可用端口、启动 Fava、监控输出，并在成功启动后打开默认浏览器。
+
     Args:
         target_path (Path): Beancount 文件的路径。
+
+    Returns:
+        NoReturn
     """
 
     port_range = range(5000, 5100)
@@ -191,36 +212,49 @@ def run_fava(target_path: Path) -> NoReturn:
         fava_process.wait()
 
 
+def get_account_rules(
+    rules: Dict[str, Dict], account_type: str = None
+) -> Union[Dict[str, Dict], List[str]]:
+    """
+    根据账户类型从配置文件中获取规则。
+    如果 account_type 为 None，则返回一个包含所有账户规则的列表。
+
+    Args:
+        rules (Dict[str, Dict]): 配置。
+        account_type (str): 账户类型（如 "wechat" 或 "alipay"）。
+
+    Returns:
+        Union[Dict[str, Dict], List[str]:
+            - 如果 account_type 指定，返回对应账户的规则。
+            - 如果 account_type 为 None，返回一个包含所有账户规则的列表。
+    """
+    if account_type is None:
+        # 返回所有账户规则的列表
+        return list(rules.keys())
+    else:
+        # 返回指定账户类型的规则
+        return rules.get(account_type, {})
+
+
 def account_map(
     target_path: Path,
-    account_type: str,
-    rules: Dict[str, str],
+    rules: Dict[str, Dict],
     temp_csv_path: Path,
 ) -> NoReturn:
     """
-    根据账户类型和规则映射交易记录。
+    使用指定规则映射交易记录。
+
     Args:
         target_path (Path): 目标文件路径。
-        account_type (str): 账户类型（如 "wechat" 或 "alipay"）。
-        rules (Dict[str, Any]): 映射规则。
+        rules (Dict[str, Dict]): 映射规则。
         temp_csv_path (Path): 临时 CSV 文件路径。
     """
-    if account_type == "wechat":
-        wechatRule = rules["wechat"]
-        account_mapper = AccountMapper(
-            target_file=target_path,
-            map=wechatRule,
-            output_file=temp_csv_path,
-        )
-        account_mapper.process_transactions()
-    elif account_type == "alipay":
-        alipayRule = rules["alipay"]
-        account_mapper = AccountMapper(
-            target_file=target_path,
-            map=alipayRule,
-            output_file=temp_csv_path,
-        )
-        account_mapper.process_transactions()
+    account_mapper = AccountMapper(
+        target_file=target_path,
+        map=rules,
+        output_file=temp_csv_path,
+    )
+    account_mapper.process_transactions()
 
 
 def csv_to_beancount(
@@ -231,11 +265,13 @@ def csv_to_beancount(
 ) -> NoReturn:
     """
     将 CSV 文件转换为 Beancount 文件。
+
     Args:
         target_path (Path): 目标 CSV 文件路径。
         bean_path (Path): Beancount 文件路径。
         out_bean_path (Path): 输出 Beancount 文件路径。
         log_obj (logging.Logger): 日志对象。
+
     Returns:
         NoReturn
     """
@@ -249,10 +285,12 @@ def close_and_remove_handlers(logger: logging.Logger) -> NoReturn:
     """关闭并移除 Logger 对象中的所有 FileHandler 处理器，释放对日志文件的占用。
     Args:
         logger (logging.Logger): 类型的日志记录器对象
-    Raises:
-        ValueError: 提供的参数不是有效的 logging.Logger 对象
+
     Returns:
         NoReturn
+
+    Raises:
+        ValueError: 提供的参数不是有效的 logging.Logger 对象
     """
     if not isinstance(logger, logging.Logger):
         raise ValueError("提供的参数不是有效的 logging.Logger 对象")
@@ -265,20 +303,32 @@ def close_and_remove_handlers(logger: logging.Logger) -> NoReturn:
             logger.removeHandler(handler)
 
 
-def main():
+def main() -> NoReturn:
+    """主函数
+
+    Returns:
+        NoReturn
+    """
     args = parse_arguments()
     app_config, rules, log_obj, config_path = config_load()
-    bean_path = app_config["bean_path"]
-    temp_csv_path = app_config["temp_csv"]
-    out_bean_path = app_config["out_bean"]
+    bean_path: str = app_config["bean_path"]
+    temp_csv_path: str = app_config["temp_csv"]
+    out_bean_path: str = app_config["out_bean"]
 
     if args.run:
-        print((config_path / "bean" / "moneybook.bean"))
         run_fava((config_path / "bean" / "moneybook.bean"))
         return
 
+    if args.get_rules:
+        rule_list: list = get_account_rules(rules)
+        if args.get_rules in rule_list:
+            file_path = config_path / "rule" / f"{args.get_rules}_rule.xlsx"
+            print(f"规则文件路径:{file_path}")
+            os.startfile(file_path)
+        return
+
     if args.init:
-        app_data_path = AppDataPath()
+        app_data_path: AppDataPath = AppDataPath()
         close_and_remove_handlers(log_obj)
         app_data_path.create_directories(True)
         init_wechat_rule(config_path / "rule")
@@ -291,10 +341,20 @@ def main():
         return
 
     if args.target_path and args.account_type:
-        account_map(args.target_path, args.account_type, rules, temp_csv_path)
+        if not os.path.exists(args.target_path):
+            print(f"错误: 指定的路径不存在: {args.target_path}")
+            return
+
+        rules = get_account_rules(rules, args.account_type)
+        account_map(args.target_path, rules, temp_csv_path)
+        print(f"映射后文件路径：{temp_csv_path}")
         return
 
     if args.target_path and args.to_beancount:
+        if not os.path.exists(args.target_path):
+            print(f"错误: 指定的路径不存在: {args.target_path}")
+            return
+
         csv_to_beancount(args.target_path, bean_path, out_bean_path, log_obj)
         return
 

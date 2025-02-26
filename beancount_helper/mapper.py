@@ -14,7 +14,7 @@ __license__ = None
 
 import pandas as pd
 from typing import NoReturn, List, Dict
-from beancount_helper.conversion import Transaction
+from conversion import Transaction
 from pipeline import (
     to_data,
     to_amount,

@@ -66,22 +66,22 @@ def ensure_directory_exists(path: Path) -> NoReturn:
         path.mkdir(parents=True, exist_ok=True)
 
 
-def config_load() -> Tuple[dict, logging.Logger, Path, str]:
+def config_load() -> Tuple[dict, dict, logging.Logger, Path]:
     """
     初始化应用程序的基本组件。
 
     此函数加载配置文件，初始化日志管理器，确保根目录存在，并生成文件格式字符串。
 
     Returns:
-        Tuple[dict, logging.Logger, Path, str]:
+        Tuple[dict, dict, logging.Logger, Path]:
             包含以下四个元素的元组：
-            - dict: 全局单例配置实例。
+            - dict: 全局应用单例配置实例。
+            - dict: 全局规则单例配置实例。
             - logging.Logger: 全局单例日志记录器实例。
             - Path: 根目录路径。
-            - str: 文件格式字符串。
 
     Example:
-        config_loader, log_obj, root_path, file_format = init_app()
+        app_config, rules, log_obj, config_path = config_load()
     """
     app = configs["app"]
     log = app["log"]
